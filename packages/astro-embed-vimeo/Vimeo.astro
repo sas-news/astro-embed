@@ -35,38 +35,35 @@ function extractID(idOrUrl: string) {
 }
 
 const videoid = extractID(id);
+
+/**
+ * Optimize an image URL with Astro’s image service, falling back to the
+ * original URL if it cannot be fetched or processed.
+ */
+async function getOptimizedImage(src: string) {
+	try {
+		return (await getImage({ src, inferSize: true, format: 'webp' })).src;
+	} catch {
+		return src;
+	}
+}
+
 let posterURL = poster
 	? poster.startsWith('http')
-		? (
-				await getImage({
-					src: poster,
-					inferSize: true,
-					format: 'webp',
-				})
-		  ).src
+		? await getOptimizedImage(poster)
 		: poster
 	: null;
 if (!posterURL) {
 	const data = await safeGet(`https://vimeo.com/api/v2/video/${videoid}.json`);
-	const resolution =
-		{ max: 1280, high: 640, default: 480, low: 120 }[posterQuality] || 480;
-	const { thumbnail_large } = data?.[0] || {};
-	if (thumbnail_large.endsWith('d_640')) {
-		posterURL = (
-			await getImage({
-				src: thumbnail_large.slice(0, -3) + resolution,
-				inferSize: true,
-				format: 'webp',
-			})
-		).src;
-	} else {
-		posterURL = (
-			await getImage({
-				src: thumbnail_large,
-				inferSize: true,
-				format: 'webp',
-			})
-		).src;
+	const thumbnail = data?.[0]?.thumbnail_large;
+	if (thumbnail) {
+		const resolution =
+			{ max: 1280, high: 640, default: 480, low: 120 }[posterQuality] || 480;
+		posterURL = await getOptimizedImage(
+			thumbnail.endsWith('d_640')
+				? thumbnail.slice(0, -3) + resolution
+				: thumbnail
+		);
 	}
 }
 
