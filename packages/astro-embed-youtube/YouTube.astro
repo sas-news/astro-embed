@@ -34,23 +34,26 @@ const posterFile =
 		default: 'hqdefault',
 		low: 'default',
 	}[posterQuality] || 'hqdefault';
+
+/**
+ * Optimize an image URL with Astro’s image service, falling back to the
+ * original URL if it cannot be fetched or processed.
+ */
+async function getOptimizedImage(src: string) {
+	try {
+		return (await getImage({ src, inferSize: true, format: 'webp' })).src;
+	} catch {
+		return src;
+	}
+}
+
 const posterURL = poster
 	? poster.startsWith('http')
-		? (
-				await getImage({
-					src: poster,
-					inferSize: true,
-					format: 'webp',
-				})
-		  ).src
+		? await getOptimizedImage(poster)
 		: poster
-	: (
-			await getImage({
-				src: `https://i.ytimg.com/vi/${videoid}/${posterFile}.jpg`,
-				inferSize: true,
-				format: 'webp',
-			})
-	  ).src;
+	: await getOptimizedImage(
+			`https://i.ytimg.com/vi/${videoid}/${posterFile}.jpg`
+	  );
 const href = `https://youtube.com/watch?v=${videoid}`;
 ---
 
